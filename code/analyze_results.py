@@ -76,7 +76,7 @@ def analyze_run(
     # Set up evaluation metrics.
     if answer_fractions_mode == 'default':
         answer_fractions = [0.8, 0.9, 0.95, 1.0]
-        answer_fractions = [0.8]
+        answer_fractions = [0.95]
     elif answer_fractions_mode == 'finegrained':
         answer_fractions = [round(i, 3) for i in np.linspace(0, 1, 20+1)]
     else:

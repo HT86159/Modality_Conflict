@@ -13,6 +13,7 @@ test_model=MOF
 # [trivia_qa, squad, bioasq, nq, svamp]
 dataset=mmvp
 HF_ENDPOINT=https://hf-mirror.com
+# /data/public/datasets/image_no_correct_labels /data/public/datasets/image_with_correct_labels
 image_path_list=(/data/public/datasets/image_no_correct_labels /data/public/datasets/image_with_correct_labels)
 for image_path in "${image_path_list[@]}"
 do

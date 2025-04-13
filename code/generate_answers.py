@@ -89,8 +89,9 @@ def main(args):
     make_prompt = utils.get_make_prompt(args)
     BRIEF = utils.BRIEF_PROMPTS[args.brief_prompt] # 字符串："Answer the following question as briefly as possible.\n"
     arg = args.brief_always if args.enable_brief else True
-    prompt = utils.construct_fewshot_prompt_from_indices( #对于多模态模型而言没有图片信息
-        train_dataset, prompt_indices, BRIEF, arg, make_prompt) #包含多个QA的string
+    # prompt = utils.construct_fewshot_prompt_from_indices( #对于多模态模型而言没有图片信息
+    #     train_dataset, prompt_indices, BRIEF, arg, make_prompt) #包含多个QA的string
+    prompt = ""
     experiment_details['prompt'] = prompt
     experiment_details['BRIEF'] = BRIEF
     logging.info('Prompt is: %s', prompt)
@@ -106,12 +107,14 @@ def main(args):
 
         p_true_indices = random.sample(answerable_indices, args.p_true_num_fewshot)
         remaining_answerable = list(set(remaining_answerable) - set(p_true_indices))
-        p_true_few_shot_prompt, p_true_responses, len_p_true = p_true_utils.construct_few_shot_prompt(
+        p_true_few_shot_prompt, p_true_responses, len_p_true, p_true_image_tensor = p_true_utils.construct_few_shot_prompt(
             model=model, dataset=train_dataset, indices=p_true_indices,
             prompt=prompt, brief=BRIEF,
             brief_always=args.brief_always and args.enable_brief,
             make_prompt=make_prompt, num_generations=args.num_generations,
-            metric=metric, model_name=args.model_name)
+            metric=metric, model_name=args.model_name, tokenizer=tokenizer,
+            image_path=args.image_path, image_processor=image_processor)
+        # import pdb;pdb.set_trace()
         wandb.config.update(
             {'p_true_num_fewshot': len_p_true}, allow_val_change=True)
         wandb.log(dict(len_p_true=len_p_true))
@@ -173,13 +176,14 @@ def main(args):
             generations[example['id']] = {'question': question, 'context': context}
             correct_answer = example['answers']['text']
             # import pdb; pdb.set_trace()
-            current_input = make_prompt(context, question, None, BRIEF, args.brief_always and args.enable_brief)
-            local_prompt = prompt + current_input
-            input_ids = tokenizer_image_token(current_input, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
-            image_path = os.path.join(args.image_path, 'images', f"{index}.jpg")
-            image = Image.open(image_path)
-            image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-
+            if args.model_name == "MOF":
+                current_input = make_prompt(context, question, None, BRIEF, args.brief_always and args.enable_brief)
+                local_prompt = prompt + current_input
+                input_ids = tokenizer_image_token(current_input, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
+                image_path = os.path.join(args.image_path, 'images', f"{index}.jpg")
+                image = Image.open(image_path)
+                image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                # import pdb;pdb.set_trace()
 
             logging.info('Current input: '.ljust(15) + current_input)
 
@@ -205,7 +209,7 @@ def main(args):
                         input_ids,
                         images=image_tensor.unsqueeze(0).half().cuda(),
                         do_sample=True,
-                        temperature=args.temperature,
+                        temperature=temperature,
                         top_p=None,
                         num_beams=1,
                         # no_repeat_ngram_size=3,
@@ -275,9 +279,10 @@ def main(args):
             if args.compute_p_true and dataset_split == 'validation': #只在validation中计算p_true
                 # Already compute p_true here. Avoid cost of generations in compute_uncertainty script.
                 # import pdb; pdb.set_trace()
+                image_tensors = torch.cat([p_true_image_tensor, image_tensor.unsqueeze(0)], dim=0)
                 p_true = p_true_utils.calculate_p_true(
                     model, question, most_likely_answer_dict['response'],
-                    [r[0] for r in full_responses], p_true_few_shot_prompt,
+                    [r[0] for r in full_responses], p_true_few_shot_prompt, make_prompt,BRIEF, args.brief_always, image_tensors,tokenizer,
                     hint=args.p_true_hint)
                 p_trues.append(p_true)
                 logging.info('p_true: %s', p_true)
@@ -293,6 +298,7 @@ def main(args):
 
         if dataset_split == 'validation':
             if args.compute_p_true:
+                # import pdb;pdb.set_trace()
                 results_dict['uncertainty_measures'] = {
                     'p_false':  [1 - p for p in p_trues],
                     'p_false_fixed':  [1 - np.exp(p) for p in p_trues],

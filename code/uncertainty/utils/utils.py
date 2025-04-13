@@ -68,7 +68,7 @@ def get_parser(stages=['generate', 'compute']):
             "--num_few_shot", type=int, default=5,
             help="Number of few shot examples to use")
         parser.add_argument(
-            "--p_true_num_fewshot", type=int, default=20, # default=20,
+            "--p_true_num_fewshot", type=int, default=3, # default=20,
             help="Number of few shot examples to use")
         parser.add_argument(
             "--p_true_hint", default=False,
@@ -97,7 +97,7 @@ def get_parser(stages=['generate', 'compute']):
             help=(
                 "Only get embedding of most likely answer for training set. "
                 "This is all that's needed for p_true."))
-        parser.add_argument('--compute_p_true', default=False,
+        parser.add_argument('--compute_p_true', default=True,
                             action=argparse.BooleanOptionalAction)
         parser.add_argument('--attention_evidence_metric', default=True,
                             action=argparse.BooleanOptionalAction)

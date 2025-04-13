@@ -25,7 +25,7 @@ from uncertainty.uncertainty_measures.envidence import EvidenceModel
 from uncertainty.uncertainty_measures import p_true as p_true_utils
 from uncertainty.utils import utils
 
-
+from tqdm import tqdm
 utils.setup_logger()
 
 EXP_DETAILS = 'experiment_details.pkl'
@@ -185,7 +185,8 @@ def main(args):
         return len(generation['reference']['answers']['text']) > 0
 
     # Loop over datapoints and compute validation embeddings and entropies.
-    for idx, tid in enumerate(validation_generations):
+    # import pdb;pdb.set_trace()
+    for idx, tid in tqdm(enumerate(validation_generations)):
         # import pdb; pdb.set_trace()
         example = validation_generations[tid]
         question = example['question']
